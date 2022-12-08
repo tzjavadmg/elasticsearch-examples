@@ -23,7 +23,10 @@ public class User {
     private Long id;
 
     @Field(type = FieldType.Keyword)
-    private String username;
+    private String name;
+
+    @Field(type = FieldType.Keyword)
+    private String sex;
 
     @Field(type = FieldType.Integer)
     private Integer age;

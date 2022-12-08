@@ -14,6 +14,7 @@ import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 import org.springframework.data.elasticsearch.core.query.GeoDistanceOrder;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 @SpringBootTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -29,7 +30,7 @@ class UserRepositoryTest {
     void createUser() {
         userRepository.save(User.builder()
                 .id(99L)
-                .username("老六")
+                .name("老六")
                 .age(33)
                 .province("上海")
                 .city("上海")
@@ -41,7 +42,7 @@ class UserRepositoryTest {
     }
 
     @Test
-    @DisplayName("批量插入或更新单个文档")
+    @DisplayName("批量插入或更新文档")
     @Order(2)
     void bulkCreateUser() {
         List<User> users = UserDataInitializer.loadUserData();
@@ -124,5 +125,21 @@ class UserRepositoryTest {
         users = userRepository.findByAgeBetween(18, 31);
         Assertions.assertEquals(users.size(), 4);
 
+    }
+
+    @Test
+    @DisplayName("按英雄简介搜索")
+    @Order(4)
+    void findByAbout() {
+        Stream<User> userStream = userRepository.findByAbout("普攻");
+        userStream.forEach(user -> System.out.println(JSON.toJSONString(user)));
+    }
+
+    @Test
+    @DisplayName("多条件组合搜索")
+    @Order(4)
+    void search() {
+        Page<User> userPage = userRepository.search("上海", "女", 18, 27, PageRequest.of(0, 10));
+        userPage.getContent().forEach(user -> System.out.println(JSON.toJSONString(user)));
     }
 }

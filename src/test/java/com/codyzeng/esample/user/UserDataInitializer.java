@@ -2,6 +2,7 @@ package com.codyzeng.esample.user;
 
 import com.alibaba.fastjson2.JSON;
 import com.codyzeng.esample.user.entity.User;
+import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 
 import java.io.IOException;
 import java.util.List;
@@ -14,13 +15,13 @@ import java.util.Objects;
 public class UserDataInitializer {
 
     public static List<User> loadUserData() {
-        ClassLoader loader = Thread.currentThread().getContextClassLoader();
         byte[] bytes = new byte[0];
         try {
-            bytes = Objects.requireNonNull(loader.getResourceAsStream("/hero.json")).readAllBytes();
+            bytes = Objects.requireNonNull(UserDataInitializer.class.getResourceAsStream("/hero.json")).readAllBytes();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return JSON.parseArray(bytes, User.class);
+        JSON.register(GeoPoint.class,GeoPointReader.INSTANCE);
+        return JSON.parseArray(new String(bytes), User.class);
     }
 }

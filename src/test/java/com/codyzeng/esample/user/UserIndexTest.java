@@ -77,7 +77,7 @@ public class UserIndexTest {
     void createUser() {
         elasticsearchTemplate.save(User.builder()
                 .id(99L)
-                .username("老六")
+                .name("老六")
                 .age(33)
                 .province("上海")
                 .city("上海")
@@ -94,7 +94,7 @@ public class UserIndexTest {
     void getUser() {
         User user = elasticsearchTemplate.get("9", User.class);
         assert user != null;
-        Assertions.assertEquals("老六", user.getUsername());
+        Assertions.assertEquals("老六", user.getName());
     }
 
     @Test
