@@ -52,9 +52,13 @@ public interface UserRepository extends ElasticsearchRepository<User, Long> {
 
     Page<User> findByAddress(String address, Pageable pageable);
 
-    @Query("{\"match\": {\"about\": {\"query\": \"?0\"}}}")
+    @Query(""" 
+            {"match": {"about": {"query": "?0"}}}
+            """)
     Stream<User> findByAbout(String name);
 
-    @Query("{\"bool\":{\"must\":[{\"match\":{\"city\":{\"query\": \"?0\"}}},{\"match\":{\"sex\":{\"query\": \"?1\"}}},{\"range\":{\"age\":{\"gte\":?2,\"lte\":?3}}}]}}")
+    @Query("""
+            {"bool":{"must":[{"match":{"city":{"query": "?0"}}},{"match":{"sex":{"query": "?1"}}},{"range":{"age":{"gte":?2,"lte":?3}}}]}}
+            """)
     Page<User> search(String city, String sex, Integer minAge, Integer maxAge, Pageable pageable);
 }

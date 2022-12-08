@@ -131,14 +131,17 @@ public class UserOperationsTest {
     @DisplayName("StringQuery：寻找上海40-60岁的老男人")
     @Order(4)
     void stringQuery() {
-        Query query = new StringQuery("{\"bool\":{\"must\":[{\"match\":{\"city\":\"上海\"}},{\"match\":{\"sex\":\"男\"}},{\"range\":{\"age\":{\"gte\":40,\"lte\":60}}}]}}");
+        String dsl="""
+        {"query":{"bool":{"must":[{"match":{"city":"上海"}},{"match":{"sex":"男"}},{"range":{"age":{"gte":40,"lte":60}}}]}}}
+    """;
+        Query query = new StringQuery(dsl);
         List<SearchHit<User>> searchHitList = elasticsearchOperations.search(query, User.class).getSearchHits();
         searchHitList.forEach(searchHit -> System.out.println(JSON.toJSONString(searchHit.getContent(), JSONWriter.Feature.PrettyFormat))
         );
     }
 
     @Test
-    @DisplayName("DSL查询：统计上海各区妹纸人数,并显示前3人信息")
+    @DisplayName("nativeQuery：统计上海各区妹纸人数,并显示前3人信息")
     @Order(4)
     void nativeQuery() {
         Sort sort = Sort.by(new GeoDistanceOrder("location", new GeoPoint(31.163862, 121.375569)))
