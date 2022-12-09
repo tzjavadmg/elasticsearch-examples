@@ -19,6 +19,7 @@ import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.*;
 import org.springframework.data.elasticsearch.core.document.Document;
 import org.springframework.data.elasticsearch.core.geo.GeoPoint;
+import org.springframework.data.elasticsearch.core.index.Settings;
 import org.springframework.data.elasticsearch.core.query.*;
 
 import java.util.HashMap;
@@ -41,7 +42,7 @@ public class UserOperationsTest {
     @Test
     @DisplayName("删除索引")
     @Order(1)
-    void deleteUserIndex() {
+    void deleteIndex() {
         IndexOperations indexOperations = elasticsearchOperations.indexOps(User.class);
         if (indexOperations.exists()) {
             indexOperations.delete();
@@ -51,9 +52,9 @@ public class UserOperationsTest {
     @Test
     @DisplayName("创建索引")
     @Order(2)
-    void createUserIndex() {
+    void createIndex() {
         IndexOperations indexOperations = elasticsearchOperations.indexOps(User.class);
-
+        //设置索引基本信息
         Map<String, Object> settings = new HashMap<>();
         Map<String, Object> index = new HashMap<>();
         settings.put("index", index);
@@ -62,6 +63,27 @@ public class UserOperationsTest {
 
         Document mapping = indexOperations.createMapping(User.class);
         indexOperations.create(settings, mapping);
+    }
+
+    @Test
+    @DisplayName("查看索引信息")
+    @Order(3)
+    void indexInfo() {
+        //查看索引完整信息
+        IndexOperations indexOperations = elasticsearchOperations.indexOps(User.class);
+        List<IndexInformation> informations = indexOperations.getInformation();
+        informations.forEach(indexInformation -> System.out.println(JSON.toJSONString(indexInformation, JSONWriter.Feature.PrettyFormat)));
+
+        //查看索引映射信息
+        Map<String, Object> mapping = indexOperations.getMapping();
+        System.out.println("------------mapping----------------");
+        System.out.println(JSON.toJSONString(mapping, JSONWriter.Feature.PrettyFormat));
+
+        //查看索引设置信息
+        Settings settings = indexOperations.getSettings(true);
+        System.out.println("------------settings----------------");
+        System.out.println(JSON.toJSONString(settings, JSONWriter.Feature.PrettyFormat));
+
     }
 
     @Test
@@ -79,7 +101,7 @@ public class UserOperationsTest {
                 .location(new GeoPoint(31.238794, 121.508506))
                 .about("预测世界杯四强：阿根廷，巴西，法国，葡萄牙")
                 .build();
-        //同时支持批量插入
+        //支持批量插入
         elasticsearchOperations.save(user);
     }
 
@@ -90,6 +112,13 @@ public class UserOperationsTest {
         User user = elasticsearchOperations.get("99", User.class);
         assert user != null;
         Assertions.assertEquals("老六", user.getName());
+    }
+
+    @Test
+    @DisplayName("删除单个文档")
+    @Order(5)
+    void deleteUser() {
+        elasticsearchOperations.delete("99", User.class);
     }
 
     @Test
@@ -112,17 +141,11 @@ public class UserOperationsTest {
         );
         query.addSort(sort);
         SearchHits<User> searchHits = elasticsearchOperations.search(query, User.class);
-
-        log.warn("\n总命中数：{}\n总命中关系：{}\n最高分：{}"
-                , searchHits.getTotalHits()
-                , searchHits.getTotalHitsRelation()
-                , searchHits.getMaxScore()
-        );
-
         List<SearchHit<User>> searchHitList = searchHits.getSearchHits();
+
         searchHitList.forEach(searchHit -> {
                     User hero = searchHit.getContent();
-                    log.info("\n分数：{}\n{}", searchHit.getScore(), JSON.toJSONString(hero, JSONWriter.Feature.PrettyFormat));
+                    log.info("\n{}", searchHit.getScore(), JSON.toJSONString(hero, JSONWriter.Feature.PrettyFormat));
                 }
         );
     }
@@ -131,41 +154,42 @@ public class UserOperationsTest {
     @DisplayName("StringQuery：寻找上海40-60岁的老男人")
     @Order(4)
     void stringQuery() {
-        String dsl="""
-        {"query":{"bool":{"must":[{"match":{"city":"上海"}},{"match":{"sex":"男"}},{"range":{"age":{"gte":40,"lte":60}}}]}}}
-    """;
+        String dsl = """
+                   {"bool":{"must":[{"match":{"city":"上海"}},{"match":{"sex":"男"}},{"range":{"age":{"gte":40,"lte":60}}}]}}
+                """;
         Query query = new StringQuery(dsl);
+
         List<SearchHit<User>> searchHitList = elasticsearchOperations.search(query, User.class).getSearchHits();
         searchHitList.forEach(searchHit -> System.out.println(JSON.toJSONString(searchHit.getContent(), JSONWriter.Feature.PrettyFormat))
         );
     }
 
     @Test
-    @DisplayName("nativeQuery：统计上海各区妹纸人数,并显示前3人信息")
+    @DisplayName("NativeQuery：统计上海各区妹纸人数,并显示前3人信息")
     @Order(4)
     void nativeQuery() {
-        Sort sort = Sort.by(new GeoDistanceOrder("location", new GeoPoint(31.163862, 121.375569)))
-                .ascending()
+        //按距离和年龄排序，选择最近的和最年轻的
+        Sort sort = Sort.by(new GeoDistanceOrder("location", new GeoPoint(31.163862, 121.375569))).ascending()
                 .and(Sort.by("age").ascending());
 
         Query query = NativeQuery.builder()
-                .withAggregation("byDistrict", Aggregation.of(a -> a
-                        .terms(ta -> ta.field("district").size(100))))
-                .withQuery(q -> q
-                        .match(m -> m
-                                .field("sex")
-                                .query("女")
-                        )
-                )
+                //定义一个名为byDistrict，按district字段分组统计的聚合。
+                .withAggregation("byDistrict", Aggregation.of(a -> a.terms(ta -> ta.field("district").size(100))))
+                //只统计妹纸
+                .withQuery(q -> q.match(m -> m.field("sex").query("女")))
+                //每页3条，显示第一页数据
                 .withPageable(PageRequest.of(0, 3, sort))
                 .build();
         SearchHits<User> searchHits = elasticsearchOperations.search(query, User.class);
+        //获取聚合数据
         ElasticsearchAggregations aggregationsContainer = (ElasticsearchAggregations) searchHits.getAggregations();
-
         Map<String, ElasticsearchAggregation> aggregations = Objects.requireNonNull(aggregationsContainer).aggregationsAsMap();
+        //获取指名称的聚合
         ElasticsearchAggregation aggregation = aggregations.get("byDistrict");
         Buckets<StringTermsBucket> buckets = aggregation.aggregation().getAggregate().sterms().buckets();
+        //打印聚合信息
         buckets.array().forEach(bucket -> log.info("\n区名:{}\n人数：{}", bucket.key().stringValue(), bucket.docCount()));
+        //打印聚合命中记录信息
         List<SearchHit<User>> searchHitList = searchHits.getSearchHits();
         searchHitList.forEach(searchHit -> System.out.println(JSON.toJSONString(searchHit.getContent(), JSONWriter.Feature.PrettyFormat)));
     }

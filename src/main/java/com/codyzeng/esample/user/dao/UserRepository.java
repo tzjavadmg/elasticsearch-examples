@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.annotations.Query;
+import org.springframework.data.elasticsearch.annotations.SourceFilters;
 import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import org.springframework.data.geo.Distance;
@@ -60,5 +61,6 @@ public interface UserRepository extends ElasticsearchRepository<User, Long> {
     @Query("""
             {"bool":{"must":[{"match":{"city":{"query": "?0"}}},{"match":{"sex":{"query": "?1"}}},{"range":{"age":{"gte":?2,"lte":?3}}}]}}
             """)
+    @SourceFilters(includes = {"address","age","name"})
     Page<User> search(String city, String sex, Integer minAge, Integer maxAge, Pageable pageable);
 }
